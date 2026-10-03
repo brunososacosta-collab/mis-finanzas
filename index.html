@@ -190,8 +190,9 @@ button{border:0;color:inherit;cursor:pointer}
 </nav>
 
 <script>
-const KEY="misFinanzasV3";
-const OLD_KEYS=["misFinanzasV2","misFinanzas","finanzas","movimientos","movimientosFinanzas","gastos"];
+const KEY="mis_finanzas_v2";
+const CURRENT_KEY="misFinanzasV3";
+const OLD_KEYS=["mis_finanzas_v1","misFinanzasV2","misFinanzas","finanzas","movimientos","movimientosFinanzas","gastos"];
 const CATS=["Vivienda","Comida","Transporte","Ocio","Salud","Tecnología","Compras","Servicios","Tarjeta de crédito","Otros"];
 const COLORS=["#19c98b","#ff9e43","#61a8ff","#ec65c9","#ff5264","#9b6cff","#f2c94c","#54d2d2","#8c63ff","#536071"];
 let state={movimientos:[],card:{name:"Itaú",close:18,due:29}};
@@ -214,16 +215,18 @@ function normalizeMove(x){
   return {id:x.id||uid(),desc:x.desc??x.descripcion??x.name??x.nombre??"Movimiento",amount:Math.abs(amount),date:String(date).slice(0,10),category:x.category??x.categoria??"Otros",type:isIncome?"ingreso":"gasto",payment:x.payment??x.metodo??"debito",installments:Number(x.installments??x.cuotas??1),card:x.card??"Itaú",createdAt:x.createdAt??Date.now()};
 }
 function migrate(){
-  const current=localStorage.getItem(KEY);
-  if(current){try{state=JSON.parse(current);return}catch(e){}}
+  // La clave de V2 es la fuente principal para conservar los datos de la PWA instalada.
+  const candidates=[KEY,CURRENT_KEY,...OLD_KEYS];
   let found=[];
-  for(const k of OLD_KEYS){
-    try{const raw=localStorage.getItem(k);const v=raw?JSON.parse(raw):null;
+  for(const k of candidates){
+    try{
+      const raw=localStorage.getItem(k); if(!raw) continue;
+      const v=JSON.parse(raw);
       const arr=Array.isArray(v)?v:(v&&Array.isArray(v.movimientos)?v.movimientos:null);
-      if(arr)found.push(...arr.map(normalizeMove).filter(Boolean));
+      if(arr) found.push(...arr.map(normalizeMove).filter(Boolean));
     }catch(e){}
   }
-  const unique=[...new Map(found.map(m=>[(m.desc+"|"+m.amount+"|"+m.date+"|"+m.type),m])).values()];
+  const unique=[...new Map(found.map(m=>[(m.desc+"|"+m.amount+"|"+m.date+"|"+m.type+"|"+(m.payment||"")),m])).values()];
   state={movimientos:unique,card:{name:"Itaú",close:18,due:29}};
   save();
 }
